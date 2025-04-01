@@ -1,6 +1,8 @@
 package ru.alex;
 
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Main {
@@ -8,7 +10,7 @@ public class Main {
     private static final AtomicInteger length4 = new AtomicInteger();
     private static final AtomicInteger length5 = new AtomicInteger();
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) {
         Random random = new Random();
         String[] texts = new String[100_000];
         long startTime = System.currentTimeMillis();
@@ -17,17 +19,13 @@ public class Main {
             texts[i] = generateText("abc", 3 + random.nextInt(3));
         }
 
-        Thread palindromThread = new Thread(() -> checkPalindromes(texts));
-        Thread sameLetterThread = new Thread(() -> checkAllSameLetters(texts));
-        Thread increasingLettersThread = new Thread(() -> checkAllIncreasingLetters(texts));
+        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
-        palindromThread.start();
-        sameLetterThread.start();
-        increasingLettersThread.start();
+        executor.execute(() -> checkPalindromes(texts));
+        executor.execute(() -> checkAllSameLetters(texts));
+        executor.execute(() -> checkAllIncreasingLetters(texts));
 
-        palindromThread.join();
-        sameLetterThread.join();
-        increasingLettersThread.join();
+        executor.shutdown();
 
         long endTime = System.currentTimeMillis();
         System.out.println("Время выполнения программы: " + (endTime - startTime) + " мс");
@@ -56,13 +54,9 @@ public class Main {
 
     private static void checkAllSameLetters(String[] texts) {
         for (String text : texts) {
-            char first = text.charAt(0);
-            for (int i = 1; i < text.length(); i++) {
-                if (text.charAt(i) != first) {
-                    break;
-                }
+            if (hasSameLetters(text)) {
+                incrementCounter(text.length());
             }
-            incrementCounter(text.length());
         }
     }
 
@@ -80,6 +74,16 @@ public class Main {
             case 4 -> length4.incrementAndGet();
             case 5 -> length5.incrementAndGet();
         }
+    }
+
+    private static boolean hasSameLetters(String text) {
+        char first = text.charAt(0);
+        for (int i = 1; i < text.length(); i++) {
+            if (text.charAt(i) != first) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean hasIncreasingLetters(String text) {
